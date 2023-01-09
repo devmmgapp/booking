@@ -1,7 +1,5 @@
 venv
 mongo/
-housekeeping/
-thomas/
 doc/
 
 # Byte-compiled / optimized / DLL files

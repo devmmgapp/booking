@@ -1,1 +1,1 @@
-xcopy f:\mmgapp\dev\eleave\* .  /Y /S  /EXCLUDE:f:\mmgapp\dev\eleave\files.txt
+xcopy f:\mmgapp\dev\booking\* .  /Y /S  /EXCLUDE:f:\mmgapp\dev\booking\files.txt

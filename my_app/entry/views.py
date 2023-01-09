@@ -13,7 +13,7 @@ load_dotenv()
 import checkLogged
 import requests
 
-from my_app import database, db, sharepoint_path
+from my_app import database, db 
 
 #########################################################################################################
 ## Gloval variables  
@@ -68,14 +68,6 @@ def getPhoto(email=None):
 
     try:
     
-    # if (os.environ['ENVIRONMENT']=="PROD"):                
-    #     #check whether it's Macys's email account
-    #     if  "@macys.com" not in session['email'].lower():
-    #          return send_from_directory("frontend/public/static/img", "anonymous.jpg")        
-    # else:
-    #     print("Getting photo for development")       
-    #     return send_from_directory("frontend/public/static/img", "anonymous.jpg")
-    
         token = _get_token_from_cache(json.loads(os.environ['SCOPE']))
         if not token and not os.environ:
             return redirect(url_for("entry.login"))
@@ -118,10 +110,9 @@ def login(timeout):
     # here we choose to also collect end user consent upfront
  
     session["flow"] = _build_auth_code_flow(scopes=json.loads(os.environ['SCOPE']), redirect_uri=url_for("entry.authorized", _external=True))    
-    session["flow2"] = _build_auth_code_flow(scopes=json.loads(os.environ['SCOPE']), redirect_uri=url_for("entry.authorized2", _external=True))    
     #  auth_uri an be added with prompt=login to force sign in     
 
-    return render_template("login.html", auth_url=session["flow"]["auth_uri"], auth_url2=session["flow2"]["auth_uri"], version=msal.__version__, timeout_message=timeout)
+    return render_template("login.html", auth_url=session["flow"]["auth_uri"],  version=msal.__version__, timeout_message=timeout)
 
 @entry.route(os.environ['REDIRECT_PATH'])  # Its absolute URL must match your app's redirect_uri set in AAD
 def authorized():
@@ -143,25 +134,7 @@ def authorized():
         return render_template("auth_error.html", result={"error" : "Value Error", "error_description":"Not signed in yet !!"})    
     return redirect(url_for("entry.index"))
 
-@entry.route("/#/ApprovalCenter")  # Its absolute URL must match your app's redirect_uri set in AAD
-def authorized2():
-    try:    
-        cache = _load_cache()
-        result = _build_msal_app(cache=cache).acquire_token_by_auth_code_flow(
-            session.get("flow2", {}), request.args)
-        if "error" in result:
-            return render_template("auth_error.html", result=result)
-        session["user"] = result.get("id_token_claims")
-        # Vincent added below:
-        #print ("email", json.dumps(result.get("id_token_claims")))
-        #print ("email", result.get("id_token_claims").get('email'))
-        session["email"] = (result.get("id_token_claims").get('email')).lower()      
-        _save_cache(cache)
-    except ValueError:  # Usually caused by CSRF
-        pass  # Simply ignore them
-        return render_template("auth_error.html", result={"error" : "Value Error", "error_description":"Not signed in yet !!"})
-    return redirect(os.environ['APPROVAL_CENTER'])
-    
+  
 
 @entry.route("/logout")
 def logout():
@@ -193,111 +166,135 @@ def getTodayDate():
 
 @entry.route('/api/getUserProfile',methods=['POST'])
 @checkLogged.check_logged
-def getUserProfile():                
-    content = request.get_json() #python data             
-    impersonatedUser = ""
-    if content:
-        impersonatedUser = content['impersonatedUser']        
-
-    sessionData, status_code = establishSessionData(impersonatedUser)
-
-    try:
-        if (status_code == 200):
-            return  jsonify(sessionData), status_code 
-        else:
-            return jsonify({'error_message' : 'Cannot find your RACF ID.  Please contact regional PBT !'}), status_code     
-    except:       
-        return jsonify({'error_message' : 'Cannot get your profile.  Please contact regional PBT !'}), status_code     
-
-
-@entry.route('/api/impersonateUser',methods=['POST'])
-@checkLogged.check_logged
-def getImpersonateUser():            
-    
-  ## Getting racf ID and employee detail via racf 
-  
-    try:
-        content = request.get_json() #python data     
-        impersonatedUser = content['impersonatedUser']
-
-        ## look for employee details via Mongo DB             
-        sessionData, status_code = establishSessionData(impersonatedUser)      
-
-        return  sessionData, status_code
-
-    except Exception as e:     
-        return "User impersonation error", status_code 
-
-    
+def getUserProfile():            
+    sessionData = establishSessionData()
+    if (sessionData):
+       return  jsonify(sessionData), 200 
+    else:
+       return "Error", 404 
    
-def establishSessionData(impersonatedUser=""):
 
-    try:        
+def establishSessionData():
 
-        racf = ""
+    sessionData={}     
 
-        if (os.environ['ENVIRONMENT']=="HEROKU"):            
-            
-            endpoint = "https://graph.microsoft.com/beta/me"                    
-            token = _get_token_from_cache(json.loads(os.environ['SCOPE']))
-
-            if not token and not os.environ:
-                return redirect(url_for("entry.login"))
-
-            racf_response = requests.get(  # Use token to call downstream service
-                endpoint,
-                headers={'Authorization': 'Bearer ' + token['access_token']}, stream=True
-                ) 
-            status_code = racf_response.status_code            
-
-            ## onPremisesSamAccountName stores RACF ID - you can use MS Graph and endpoint to see                  
-
-            if status_code == 200:
-                pass
-                racf_data =  racf_response.json()                                   
-                racf = racf_data["onPremisesSamAccountName"].upper()                
-            else: 
-                raise Exception("RACF ID failed to validate in the Active Directory.  Please contact regional PBT for assistance!")    
-
-        else:
-            racf = current_app.config['APP_RACF'].upper()
-
-        if len(impersonatedUser) > 0:            
-            racf  = impersonatedUser    
-        
-        sessionData={}     
-
-        ## look for employee details via Mongo DB        
-        query =  { "staff.racf": racf}
-        results = eleaveDtl.find_one(query)             
-       
-        years_str = os.environ['YEARS']      
-        years = eval(years_str)
-        years = pd.DataFrame(data=years)
-        years.sort_values(by=["year"], ascending=True, inplace=True)
-        years = years.to_json(orient="columns")        
-        
-        sessionData["userProfile"] = { 
-            "email": results["staff"]["email"], 
-            "userName" : results["staff"]["name"], 
-            "office" : results["staff"]["office"], 
-            "entitlement" : results['entitlement'],
-            "racf" :  results["staff"]["racf"], 
-            "superUser": results['staff']["superUser"] if len(impersonatedUser) ==0 else session["superUser"], 
-            "environment":  os.environ["ENVIRONMENT"],   
-            "databaseSchema":  "dev" if database[:3].lower() == "dev" else "prod",
-            "staff": results["staff"],
-            "years" : years    
-        }            
-       
-        session['racf'] = sessionData["userProfile"]["racf"]        
-        session['superUser'] = sessionData["userProfile"]["superUser"]        
-        sessionData["sharePointPath"] = sharepoint_path
-    
-        return sessionData, 200 
-
-    except Exception as e:             
-        return "Session establish error !!", 501
+    email =""
+   
+    if (os.environ['ENVIRONMENT']=="PROD"):
+        email = session['email']                
+    else:       
+        email = "vincent.cheng@macys.com"         
              
-               
-  
+    col = db["userProfile"]
+
+    query =  { "email": email}
+
+    results = col.find_one(query)
+    #print('results', results["email"])
+    # print('results', results["mf_list"])
+    
+    #this forces the mf_list to be generated from profile only, not API requests.   
+    
+    session["userName"] = f"{results['first_name']} {results['last_name']}"
+    session["mfList"] = results["mf_list"]   
+        
+    sessionData["userProfile"] = {"email" : results["email"], "first_name" : results["first_name"], "ignore_submit": results["ignore_submit"],
+    "environment":  os.environ["ENVIRONMENT"], 
+    "databaseSchema":  "dev" if database[:3].lower() == "dev" else "prod"    
+     }    
+
+    sessionData["mfList"] = results["mf_list"]   
+
+
+    sessionData["mcTable"] = ""  
+    session["mcTable"] = ""  
+
+    #get Party Table 
+    search = []        
+    for _filter in session['mfList']:
+        search.append(   {  '$or': [ { '_id': { '$eq': _filter['SU'] } }, { '_id' : { '$eq': _filter['MF'] } } ]  } )         
+
+    col = db["partyTable"]
+    query = {'$or' : search}   
+            
+    party = []     
+    results = col.find(query)
+    for result in results:
+        result["_id"] = str(result["_id"])
+        party.append(result)
+
+       
+    partyTable = []     
+    for pair in session['mfList']:
+        for x in party:
+            if x['_id'] == pair['SU']:
+                pair['SU_NAME'] = x['party_name']
+            if x['_id'] == pair['MF']:
+                pair['MF_NAME'] = x['party_name']
+        partyTable.append(pair)             
+
+    sessionData["partyTable"] = partyTable     
+    #print(partyTable)        
+
+
+    col = db["qcAQL"]
+    query = {}   
+    aqlTable = []     
+    results = col.find(query)
+    for result in results:        
+        aqlTable.append(result)
+    
+    sessionData["aqlTable"] = aqlTable
+
+
+    col = db["checkList"]
+    query = {}   
+    checkList = []     
+    results = col.find(query)
+    for result in results:    
+        #remove this _id as this is an object not serializable 
+        result.pop('_id')    
+        checkList.append(result)
+    
+    sessionData["checkListTemplate"] = checkList 
+              
+    #print("Established Session Data")
+
+    #get QA members list     
+
+    col = db["metaTable"]
+    query = {'category': "qaList"}
+    results = col.find_one(query)
+ 
+    group = []
+    for rec in results['selectionList']:          
+        lead_email = rec["QALead"]
+        for qa_email in rec['QAList']:            
+            if qa_email["mqa"] == email:                
+                group = rec['QAList']   
+
+    sessionData["mqaMembers"] = group   
+
+    #get Pack Type  
+    col = db["metaTable"]
+    query = {'category': "packType"}
+    results = col.find_one(query)
+    packTypes = results['selectionList']     
+    sessionData["packTypes"] = packTypes     
+
+
+    #get Product Category list     
+    col = db["metaTable"]
+    query = {'category': "productCategory"}
+    results = col.find_one(query)
+    productCategories = results['selectionList']     
+    sessionData["productCategories"] = productCategories
+
+
+    #get Inspection Type 
+    col = db["metaTable"]
+    query = {'category': "inspType"}
+    results = col.find_one(query)    
+    sessionData["inspType"] = results['selectionList']        
+        
+    return sessionData
