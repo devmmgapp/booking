@@ -200,7 +200,7 @@ def establishSessionData():
             email = current_app.config['APP_EMAIL'] 
     
              
-    col = db["userProfile"]
+    col = db["userProfileBooking"]
 
     query =  { "email": email}
 
