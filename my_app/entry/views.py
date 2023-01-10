@@ -261,18 +261,7 @@ def establishSessionData():
     
     sessionData["aqlTable"] = aqlTable
 
-
-    col = db["checkList"]
-    query = {}   
-    checkList = []     
-    results = col.find(query)
-    for result in results:    
-        #remove this _id as this is an object not serializable 
-        result.pop('_id')    
-        checkList.append(result)
-    
-    sessionData["checkListTemplate"] = checkList 
-              
+             
     #print("Established Session Data")
 
     #get QA members list     
@@ -289,14 +278,6 @@ def establishSessionData():
                 group = rec['QAList']   
 
     sessionData["mqaMembers"] = group   
-
-    #get Pack Type  
-    col = db["metaTable"]
-    query = {'category': "packType"}
-    results = col.find_one(query)
-    packTypes = results['selectionList']     
-    sessionData["packTypes"] = packTypes     
-
 
     #get Product Category list     
     col = db["metaTable"]
