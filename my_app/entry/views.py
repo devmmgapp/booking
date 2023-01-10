@@ -191,8 +191,10 @@ def establishSessionData():
                 ) 
             status_code = racf_response.status_code                        
 
-            if status_code != 200:                
-                raise Exception("It fails to validate your email.  Please contact regional PBT for assistance!")    
+            if status_code == 200:                
+               email = session["email"]
+            else:
+               raise Exception("It fails to validate your email.  Please contact regional PBT for assistance!")    
 
     else:
             email = current_app.config['APP_EMAIL'] 
