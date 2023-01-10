@@ -126,6 +126,15 @@ def authorized():
         session["user"] = result.get("id_token_claims")        
         session["email"] = (result.get("id_token_claims").get('email')).lower()      
         _save_cache(cache)
+
+        ## update user's profile's last login date based on server date 
+        today = date.today()
+        today = today.strftime('%Y-%m-%d')
+        col = db["userProfileBooking"]
+        query =  { "email": session['email']}
+        col.update_one(query, {'$set': {'last_login': today}})
+
+
     except ValueError:  # Usually caused by CSRF
         pass  # Simply ignore them
         return render_template("auth_error.html", result={"error" : "Value Error", "error_description":"Not signed in yet !!"})    
