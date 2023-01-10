@@ -123,10 +123,7 @@ def authorized():
             session.get("flow", {}), request.args)
         if "error" in result:
             return render_template("auth_error.html", result=result)
-        session["user"] = result.get("id_token_claims")
-        # Vincent added below:
-        #print ("email", json.dumps(result.get("id_token_claims")))
-        #print ("email", result.get("id_token_claims").get('email'))
+        session["user"] = result.get("id_token_claims")        
         session["email"] = (result.get("id_token_claims").get('email')).lower()      
         _save_cache(cache)
     except ValueError:  # Usually caused by CSRF
@@ -180,10 +177,26 @@ def establishSessionData():
 
     email =""
    
-    if (os.environ['ENVIRONMENT']=="PROD"):
-        email = session['email']                
-    else:       
-        email = "vincent.cheng@macys.com"         
+    if (os.environ['ENVIRONMENT']=="HEROKU"):            
+            
+            endpoint = "https://graph.microsoft.com/beta/me"                    
+            token = _get_token_from_cache(json.loads(os.environ['SCOPE']))
+
+            if not token and not os.environ:
+                return redirect(url_for("entry.login"))
+
+            racf_response = requests.get(  # Use token to call downstream service
+                endpoint,
+                headers={'Authorization': 'Bearer ' + token['access_token']}, stream=True
+                ) 
+            status_code = racf_response.status_code                        
+
+            if status_code != 200:                
+                raise Exception("It fails to validate your email.  Please contact regional PBT for assistance!")    
+
+    else:
+            email = current_app.config['APP_EMAIL'] 
+    print('email', email)        
              
     col = db["userProfile"]
 

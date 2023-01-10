@@ -49,20 +49,12 @@ booking = Blueprint('booking', __name__)
 reportMap = db["fileDirectory"]
 
 
-#Global Constant
-
-
-# leaveTypeLst = []
-# leaveGroupLst = []
-               
-
-
 @booking.route('/api/checkDuplicateID', methods=['POST'])
 @checkLogged.check_logged
 def check_duplicate_inpsection_id():
     content = request.get_json() #python data 
     _id = content['_id']
-    col = db["inspectionResult"]
+    col = db["inspectionBooking"]
     query =  { "_id": _id}
     exists = col.find_one(query)
     if (exists):
@@ -77,12 +69,10 @@ def save_inspection():
 
     #content = request.data # json data 
     _id = content['_id']
-    checkList = content['checkList']
+    
     items = content['items']
     itemsTotal = content['itemsTotal'] 
     poList = content['poList'] 
-
-    defects = content['defects']    
     main = content['main']
     misc = content['misc']
     update_history = content['updateHistory']    
@@ -109,10 +99,10 @@ def save_inspection():
 
     update_history.append(update_current)    
        
-    new_content = { "_id" : _id, "main" : main,  "misc" : misc,  "checkList" : checkList, "items" : items, "itemsTotal" : itemsTotal, 
-    "poList" : poList,  "defects": defects,      "update_history" : update_history }
+    new_content = { "_id" : _id, "main" : main,  "misc" : misc,   "items" : items, "itemsTotal" : itemsTotal, 
+    "poList" : poList,   "update_history" : update_history }
   
-    col = db["inspectionResult"]
+    col = db["inspectionBooking"]
 
     query =  { "_id": _id}
     exists = col.find_one(query)
@@ -121,15 +111,9 @@ def save_inspection():
     for hist in update_history:
         hist['updated_time'] = parser.parse( hist['updated_time'])
 
-
-    ## convert all major and minor of defect string to integer in Mongodb 
-    for defect in defects:
-        defect['major'] = int(defect['major'])
-        defect['minor'] = int(defect['minor'])
-
+    
     if (exists):
-        change =  { "$set":  {  "main" : main, "misc": misc, "checkList" : checkList, "items" : items, 
-        "itemsTotal" : itemsTotal, "poList" : poList, "defects":defects,   "update_history": update_history} }    # change     
+        change =  { "$set":  {  "main" : main, "misc": misc, "items" : items, "itemsTotal" : itemsTotal, "poList" : poList,  "update_history": update_history} }    # change     
         col.update_one(query, change)
         return "ok",200
     else:        
@@ -157,7 +141,7 @@ def search_inspection():
     ##print("Search content",content)
     _id = content['_id']
     
-    col = db["inspectionResult"]
+    col = db["inspectionBooking"]
 
     query =  { "_id": _id}
     results = col.find_one(query)        
@@ -176,7 +160,7 @@ def delete_inspection():
      
     try:  
         
-        col = db["inspectionResult"]
+        col = db["inspectionBooking"]
         delete_log_col = db["Delete_Log"]
         _id = content['_id']
 
@@ -184,9 +168,9 @@ def delete_inspection():
 
         ## add to delete_log in Mongo
         updated_by = "development@heroku" if session.get("email") == None else session.get("email")               
-        existing_inspectionResult = col.find_one(query)
+        existing_inspectionBooking = col.find_one(query)
         delete_log_col.insert_one( { "_id": str(uuid.uuid4()), 
-        "updated_by" : updated_by, "time":datetime.now(timezone.utc),"doc_type": "inspectionResult", "rec" : existing_inspectionResult })
+        "updated_by" : updated_by, "time":datetime.now(timezone.utc),"doc_type": "inspectionBooking", "rec" : existing_inspectionBooking })
 
         result = col.delete_one(query)
         if result.deleted_count > 0:
@@ -195,9 +179,9 @@ def delete_inspection():
             return  "Not OK", 400 
     
     #except mongoengine.errors.OperationError:           
-    except OperationFailure:
-        print("error")
-        return "Error", 400 
+    except Exception as e: 
+        print("error", e)
+        return e, 400 
 
 @booking.route('/api/searchInspByMC',methods=['POST'])
 @checkLogged.check_logged
@@ -206,7 +190,7 @@ def searchInspMC():
     content = request.get_json() #python data     
     mc = content['mc'] 
  
-    col = db["inspectionResult"]
+    col = db["inspectionBooking"]
     
     ## Reserverd for later use
     # search = []
@@ -239,15 +223,7 @@ def searchInspMC():
        return "Error", 404 
 
 
-@booking.route('/api/getUserProfile',methods=['POST'])
-@checkLogged.check_logged
-def getUserProfile():            
-    sessionData = establishSessionData()
-    if (sessionData):
-       return  jsonify(sessionData), 200 
-    else:
-       return "Error", 404 
-
+ 
 
 @booking.route('/api/getMCtable',methods=['POST'])
 @checkLogged.check_logged
@@ -271,92 +247,7 @@ def getMCtable():
 
     if len(mc_array) > 0: 
         return  jsonify(mc_array), 200    
-    
 
-def establishSessionData():
-
-    sessionData={}     
-
-    email =""
-   
-    if (os.environ['ENVIRONMENT']=="PROD"):
-        email = session['email']                
-    else:       
-        email = "vincent.cheng@macys.com"         
-             
-    col = db["userProfile"]
-
-    query =  { "email": email}
-
-    results = col.find_one(query)
-    #print('results', results["email"])
-    # print('results', results["mf_list"])
-    
-    #this forces the mf_list to be generated from profile only, not API requests.   
-    
-    session["userName"] = f"{results['first_name']} {results['last_name']}"
-    session["mfList"] = results["mf_list"]   
-        
-    sessionData["userProfile"] = {"email" : results["email"], "first_name" : results["first_name"], "ignore_submit": results["ignore_submit"],
-    "environment":  os.environ["ENVIRONMENT"], 
-    "databaseSchema":  "dev" if database[:3].lower() == "dev" else "prod"    
-     }    
-
-    sessionData["mfList"] = results["mf_list"]   
-    sessionData["mcTable"] = ""  
-    session["mcTable"] = ""  
-
-    #get Party Table 
-    search = []        
-    for _filter in session['mfList']:
-        search.append(   {  '$or': [ { '_id': { '$eq': _filter['SU'] } }, { '_id' : { '$eq': _filter['MF'] } } ]  } )         
-
-    col = db["partyTable"]
-    query = {'$or' : search}   
-            
-    party = []     
-    results = col.find(query)
-    for result in results:
-        result["_id"] = str(result["_id"])
-        party.append(result)
-
-       
-    partyTable = []     
-    for pair in session['mfList']:
-        for x in party:
-            if x['_id'] == pair['SU']:
-                pair['SU_NAME'] = x['party_name']
-            if x['_id'] == pair['MF']:
-                pair['MF_NAME'] = x['party_name']
-        partyTable.append(pair)             
-
-    sessionData["partyTable"] = partyTable     
-
-
-    #print("Established Session Data")
-
-    #get QA members list     
-
-    col = db["metaTable"]
-    query = {'category': "qaList"}
-    results = col.find_one(query)
- 
-    group = []
-    for rec in results['selectionList']:          
-        lead_email = rec["QALead"]
-        for qa_email in rec['QAList']:            
-            if qa_email["mqa"] == email:                
-                group = rec['QAList']   
-
-    sessionData["mqaMembers"] = group   
-
-    #get Inspection Type 
-    col = db["metaTable"]
-    query = {'category': "inspType"}
-    results = col.find_one(query)    
-    sessionData["inspType"] = results['selectionList']        
-        
-    return sessionData
 
 ####################################################################################
 #  Genearte Excel Report - Start 
