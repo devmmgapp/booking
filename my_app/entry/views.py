@@ -250,6 +250,7 @@ def establishSessionData():
        
     partyTable = []     
     for pair in session['mfList']:
+        pair['MF_NAME'] = ""  
         for x in party:
             if x['_id'] == pair['SU']:
                 pair['SU_NAME'] = x['party_name']
@@ -257,8 +258,8 @@ def establishSessionData():
                 pair['MF_NAME'] = x['party_name']
         partyTable.append(pair)             
 
-    sessionData["partyTable"] = partyTable     
-    #print(partyTable)        
+    sessionData["partyTable"] = partyTable           
+    partyTable = sorted(partyTable, key=lambda d: (d['SU_NAME'], d['MF_NAME']) )       
 
 
     col = db["qcAQL"]
