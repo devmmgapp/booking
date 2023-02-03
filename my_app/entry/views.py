@@ -19,7 +19,7 @@ from my_app import database, db
 ## Gloval variables  
 #########################################################################################################
 
-eleaveDtl = db["eleave_dtl"]
+ 
 
 #########################################################################################################
 ## BluePrint Declaration  
@@ -257,9 +257,10 @@ def establishSessionData():
             if x['_id'] == pair['MF']:
                 pair['MF_NAME'] = x['party_name']
         partyTable.append(pair)             
-
-    sessionData["partyTable"] = partyTable           
+        
     partyTable = sorted(partyTable, key=lambda d: (d['SU_NAME'], d['MF_NAME']) )       
+    sessionData["partyTable"] = partyTable           
+
 
 
     col = db["qcAQL"]
