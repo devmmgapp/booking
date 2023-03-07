@@ -420,7 +420,13 @@ def printreport():
         booking_no = inspectionID['inspectionID'][x]['booking_no']
         insptype = inspectionID['inspectionID'][x]['type']
 
-        bookingRecord = inspectionBooking.find_one ( {"_id.mc" : { '$eq' : mc} , "_id.booking_no": { '$eq' :booking_no} , "_id.type": { '$eq' : insptype}, "main.inspection_date": {"$gte": reportStart.strftime("%Y-%m-%d"),"$lte": reportEnd.strftime("%Y-%m-%d") } } )
+        if report_type == "Single":
+
+            bookingRecord = inspectionBooking.find_one ( {"_id.mc" : { '$eq' : mc} , "_id.booking_no": { '$eq' :booking_no} , "_id.type": { '$eq' : insptype}} )
+
+        elif report_type == "Multiple":
+
+            bookingRecord = inspectionBooking.find_one ( {"_id.mc" : { '$eq' : mc} , "_id.booking_no": { '$eq' :booking_no} , "_id.type": { '$eq' : insptype}, "main.inspection_date": {"$gte": reportStart.strftime("%Y-%m-%d"),"$lte": reportEnd.strftime("%Y-%m-%d") } } )
 
         if bookingRecord is not None:
             AllbookingRecord.append(bookingRecord)
