@@ -1,0 +1,3 @@
+c:
+cd C:\Users\nf1bhc\Desktop\Process\Python\booking\housekeeping\template\
+F:\mmgapp\tool\mongodbtool\bin\mongofiles "mongodb+srv://dbuser1:mmgoverseas@cluster0.r1zhb.mongodb.net/" -d=dev_qcDB put "BookingReport v1.0.xlsx"

@@ -290,6 +290,18 @@ def establishSessionData():
 
     sessionData["mqaMembers"] = group   
 
+
+    #get QA Name
+    factoryMaster = []
+    col = db["factoryMaster"]
+    query = {} # all
+    results = col.find(query)
+    for result in results:
+        result["_id"] = str(result["_id"])
+        factoryMaster.append(result)
+    sessionData["factoryMaster"] = factoryMaster
+
+
     #get Product Category list     
     col = db["metaTable"]
     query = {'category': "productCategory"}
@@ -303,5 +315,6 @@ def establishSessionData():
     query = {'category': "inspType"}
     results = col.find_one(query)    
     sessionData["inspType"] = results['selectionList']        
+
         
     return sessionData
