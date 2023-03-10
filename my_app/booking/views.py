@@ -404,7 +404,10 @@ def printreport():
                     'booking_no': row['_id']['booking_no'],
                     'type': row['_id']['type']
                     }
-                inspectionID['inspectionID'].append(record)        
+                inspectionID['inspectionID'].append(record)     
+
+        if len(inspectionID) < 1 :
+            return jsonify({"error_message" : "Sorry, we failed to generate Booking Report"}), 501
 
     # Make Report Period
     localTime = datetime.strptime(localTime, "%a %b %d %Y %H:%M:%S").date()
