@@ -406,7 +406,7 @@ def printreport():
                     }
                 inspectionID['inspectionID'].append(record)     
 
-        if len(inspectionID) < 0 :
+        if len(inspectionID['inspectionID']) < 0 :
             return jsonify({"error_message" : "Sorry, we failed to generate Booking Report"}), 501
 
     # Make Report Period
