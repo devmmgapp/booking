@@ -412,7 +412,7 @@ def printreport():
     # Make Report Period
     localTime = datetime.strptime(localTime, "%a %b %d %Y %H:%M:%S").date()
     reportStart = (localTime + timedelta(days=(7 - localTime.weekday() - 1)))
-    reportEnd = (localTime + timedelta(days=(6 - localTime.weekday() + 6)))
+    reportEnd = ((localTime + timedelta(days=(6 - localTime.weekday() + 6))) + timedelta(days=7))
         
     
     # Build the data structure for output
@@ -433,6 +433,9 @@ def printreport():
 
         if bookingRecord is not None:
             AllbookingRecord.append(bookingRecord)
+
+    if len(bookingRecord) < 1 :
+        return jsonify({"error_message" : "Sorry, we failed to generate Booking Report"}), 501
 
     bookingDetail = bookingRecordFormatting(AllbookingRecord, localTime)
 
